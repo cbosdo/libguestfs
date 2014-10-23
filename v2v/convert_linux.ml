@@ -208,6 +208,7 @@ let rec convert ~keep_serial_console (g : G.guestfs) inspect source rcaps =
               msg
     )
 
+(* Disabled in RHEL 7.1: see https://bugzilla.redhat.com/show_bug.cgi?id=1155610
   and unconfigure_vmware () =
     (* Look for any configured VMware yum repos and disable them. *)
     let repos =
@@ -310,6 +311,7 @@ let rec convert ~keep_serial_console (g : G.guestfs) inspect source rcaps =
           warning (f_"VMware tools was detected, but uninstallation failed.  The error message was: %s (ignored)")
             msg
     )
+*)
 
   and unconfigure_citrix () =
     let pkgs =
@@ -965,7 +967,7 @@ let rec convert ~keep_serial_console (g : G.guestfs) inspect source rcaps =
 
   unconfigure_xen ();
   unconfigure_vbox ();
-  unconfigure_vmware ();
+  (*unconfigure_vmware ();*)
   unconfigure_citrix ();
   unconfigure_kudzu ();
   unconfigure_prltools ();
