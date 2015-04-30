@@ -29,12 +29,6 @@ open Docstrings
 
 (* Order is significant *within architectures only*. *)
 let firmware = [
-    "i386",
-    "/usr/share/edk2.git/ovmf-ia32/OVMF_CODE-pure-efi.fd",
-    None,
-    "/usr/share/edk2.git/ovmf-ia32/OVMF_VARS-pure-efi.fd",
-    [];
-
     "x86_64",
     "/usr/share/OVMF/OVMF_CODE.fd",
     None,
@@ -57,13 +51,6 @@ let firmware = [
     "/usr/share/edk2/ovmf/OVMF_VARS.fd",
     [];
 
-    (* kraxel's old repository, these will be removed by end of 2016. *)
-    "x86_64",
-    "/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd",
-    None,
-    "/usr/share/edk2.git/ovmf-x64/OVMF_VARS-pure-efi.fd",
-    [];
-
     "x86_64",
     "/usr/share/qemu/ovmf-x86_64-code.bin",
     None,
@@ -80,13 +67,6 @@ let firmware = [
     "/usr/share/edk2/aarch64/QEMU_EFI-pflash.raw",
     None,
     "/usr/share/edk2/aarch64/vars-template-pflash.raw",
-    [];
-
-    (* kraxel's old repository, these will be removed by end of 2016. *)
-    "aarch64",
-    "/usr/share/edk2.git/aarch64/QEMU_EFI-pflash.raw",
-    None,
-    "/usr/share/edk2.git/aarch64/vars-template-pflash.raw",
     [];
 ]
 
