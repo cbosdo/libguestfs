@@ -20,4 +20,4 @@ export LANG=C
 set -e
 
 $srcdir/../podcheck.pl virt-v2v.pod virt-v2v \
-  --ignore=--dcPath,--debug-overlay,--ic,--if,--no-trim,--oa,--oc,--of,--on,--os,--vmtype
+  --ignore=--dcPath,--debug-overlay,--ic,--if,--in-place,--no-trim,--oa,--oc,--of,--on,--os,--vmtype
