@@ -302,7 +302,11 @@ let detect_bootloader (g : G.guestfs) inspect =
     ] in
     let locations =
       match inspect.i_firmware with
-      | I_UEFI _ -> ("/boot/efi/EFI/redhat/grub.cfg", Grub2) :: locations
+      | I_UEFI _ ->
+        [
+          "/boot/efi/EFI/redhat/grub.cfg", Grub2;
+          "/boot/efi/EFI/redhat/grub.conf", Grub1;
+        ] @ locations
       | I_BIOS -> locations in
     try
       List.find (
@@ -313,5 +317,9 @@ let detect_bootloader (g : G.guestfs) inspect =
         error (f_"no bootloader detected") in
 
   match typ with
-  | Grub1 -> new bootloader_grub1 g inspect config_file
+  | Grub1 ->
+    if config_file = "/boot/efi/EFI/redhat/grub.conf" then
+      g#aug_transform "grub" "/boot/efi/EFI/redhat/grub.conf";
+
+    new bootloader_grub1 g inspect config_file
   | Grub2 -> new bootloader_grub2 g config_file
