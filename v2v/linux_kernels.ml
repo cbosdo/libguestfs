@@ -54,7 +54,11 @@ let detect_kernels (g : G.guestfs) inspect family bootloader =
   let installed_kernels : kernel_info list =
     let rex_ko = Str.regexp ".*\\.k?o\\(\\.xz\\)?$" in
     let rex_ko_extract = Str.regexp ".*/\\([^/]+\\)\\.k?o\\(\\.xz\\)?$" in
-    let rex_initrd = Str.regexp "^initr\\(d\\|amfs\\)-.*\\(\\.img\\)?$" in
+    let rex_initrd =
+      if family = `Debian_family then
+        Str.regexp "^initrd.img-.*$"
+      else
+        Str.regexp "^initr\\(d\\|amfs\\)-.*\\(\\.img\\)?$" in
     filter_map (
       function
       | { G.app2_name = name } as app
