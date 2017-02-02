@@ -19,3 +19,7 @@
 val get_index : downloader:Downloader.t -> sigchecker:Sigchecker.t -> template:bool -> Sources.source -> Index.index
 (** [get_index download sigchecker source] will parse the source index file
      into an index entry list. *)
+
+val write_entry : out_channel -> (string * Index.entry) -> unit
+(** [write_entry chan entry] writes the index entry to the chan output
+    stream.*)

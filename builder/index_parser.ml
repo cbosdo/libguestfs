@@ -234,3 +234,57 @@ let get_index ~downloader ~sigchecker ~template
   in
 
   get_index ()
+
+let write_entry chan (name, { Index.printable_name = printable_name;
+                              file_uri = file_uri;
+                              arch = arch;
+                              osinfo = osinfo;
+                              signature_uri = signature_uri;
+                              checksums = checksums;
+                              revision = revision;
+                              format = format;
+                              size = size;
+                              compressed_size = compressed_size;
+                              expand = expand;
+                              lvexpand = lvexpand;
+                              notes = notes;
+                              aliases = aliases;
+                              hidden = hidden }) =
+  let fp fs = fprintf chan fs in
+  fp "[%s]\n" name;
+  may (fp "name=%s\n") printable_name;
+  may (fp "osinfo=%s\n") osinfo;
+  fp "file=%s\n" file_uri;
+  fp "arch=%s\n" arch;
+  may (fp "sig=%s\n") signature_uri;
+  (match checksums with
+  | None -> ()
+  | Some checksums ->
+    List.iter (
+      fun c ->
+        fp "checksum[%s]=%s\n"
+          (Checksums.string_of_csum_t c) (Checksums.string_of_csum c)
+    ) checksums
+  );
+  fp "revision=%s\n" (string_of_revision revision);
+  may (fp "format=%s\n") format;
+  fp "size=%Ld\n" size;
+  may (fp "compressed_size=%Ld\n") compressed_size;
+  may (fp "expand=%s\n") expand;
+  may (fp "lvexpand=%s\n") lvexpand;
+
+  let format_notes notes =
+    String.concat "\n " (String.nsplit "\n" notes) in
+
+  List.iter (
+    fun (lang, notes) ->
+      match lang with
+      | "" -> fp "notes=%s\n" (format_notes notes)
+      | lang -> fp "notes[%s]=%s\n" lang (format_notes notes)
+  ) notes;
+  (match aliases with
+  | None -> ()
+  | Some l -> fp "aliases=%s\n" (String.concat " " l)
+  );
+  if hidden then fp "hidden=true\n";
+  fp "\n"

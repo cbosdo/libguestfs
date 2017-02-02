@@ -106,6 +106,7 @@ Makefile.in
 /builder/virt-index-validate
 /builder/virt-index-validate.1
 /builder/*.xz
+/builder/index_parser_tests
 /builder/yajl_tests
 /cat/stamp-virt-*.pod
 /cat/virt-cat
