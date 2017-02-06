@@ -24,7 +24,7 @@ open Utils
 open Printf
 open Unix
 
-let get_index ~downloader ~sigchecker
+let get_index ~downloader ~sigchecker ~template
   { Sources.uri = uri; proxy = proxy } =
   let corrupt_file () =
     error (f_"The index file downloaded from '%s' is corrupt.\nYou need to ask the supplier of this file to fix it and upload a fixed version.") uri
@@ -112,7 +112,7 @@ let get_index ~downloader ~sigchecker
           let revision =
             try Rev_int (int_of_string (List.assoc ("revision", None) fields))
             with
-            | Not_found -> Rev_int 1
+            | Not_found -> if template then Rev_int 0 else Rev_int 1
             | Failure _ ->
               eprintf (f_"%s: cannot parse 'revision' field for '%s'\n") prog n;
               corrupt_file () in
@@ -122,11 +122,19 @@ let get_index ~downloader ~sigchecker
             try Int64.of_string (List.assoc ("size", None) fields)
             with
             | Not_found ->
-              eprintf (f_"%s: no 'size' field for '%s'\n") prog n;
-              corrupt_file ()
+              if template then
+                Int64.zero
+              else (
+                eprintf (f_"%s: no 'size' field for '%s'\n") prog n;
+                corrupt_file ()
+              )
             | Failure _ ->
-              eprintf (f_"%s: cannot parse 'size' field for '%s'\n") prog n;
-              corrupt_file () in
+              if template then
+                Int64.zero
+              else (
+                eprintf (f_"%s: cannot parse 'size' field for '%s'\n") prog n;
+                corrupt_file ()
+              ) in
           let compressed_size =
             try Some (Int64.of_string (List.assoc ("compressed_size", None) fields))
             with

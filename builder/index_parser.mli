@@ -16,4 +16,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *)
 
-val get_index : downloader:Downloader.t -> sigchecker:Sigchecker.t -> Sources.source -> Index.index
+val get_index : downloader:Downloader.t -> sigchecker:Sigchecker.t -> template:bool -> Sources.source -> Index.index
+(** [get_index download sigchecker source] will parse the source index file
+     into an index entry list. *)

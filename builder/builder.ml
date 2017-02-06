@@ -209,7 +209,7 @@ let main () =
                               ~tmpdir in
           match source.Sources.format with
           | Sources.FormatNative ->
-            Index_parser.get_index ~downloader ~sigchecker source
+            Index_parser.get_index ~downloader ~sigchecker ~template:false source
           | Sources.FormatSimpleStreams ->
             Simplestreams_parser.get_index ~downloader ~sigchecker source
       ) sources
