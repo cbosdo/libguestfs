@@ -112,7 +112,9 @@ libguestfs_la_SOURCES = \
 	lpj.c \
 	match.c \
 	mountable.c \
+	osinfo.h \
 	osinfo.c \
+	osinfo-iso.c \
 	private-data.c \
 	proto.c \
 	qemu.c \
