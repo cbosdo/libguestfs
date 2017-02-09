@@ -36,6 +36,7 @@ SOURCES_MLI = \
 	curl.mli \
 	getopt.mli \
 	JSON.mli \
+	osinfo.mli \
 	planner.mli \
 	progress.mli \
 	regedit.mli \
@@ -63,7 +64,8 @@ SOURCES_ML = \
 	curl.ml \
 	checksums.ml \
 	xml.ml \
-	xpath_helpers.ml
+	xpath_helpers.ml \
+	osinfo.ml
 
 SOURCES_C = \
 	../common/visit/visit.c \
@@ -71,8 +73,12 @@ SOURCES_C = \
 	../common/options/keys.c \
 	../common/options/uri.c \
 	../common/progress/progress.c \
+	../lib/alloc.c \
+	../lib/osinfo.c \
+	../lib/osinfo.h \
 	common_utils-c.c \
 	getopt-c.c \
+	osinfo-c.c \
 	progress-c.c \
 	unix_utils-c.c \
 	uri-c.c \
@@ -106,7 +112,8 @@ libmllib_a_CPPFLAGS = \
 	-I$(top_srcdir)/lib \
 	-I$(top_srcdir)/common/visit \
 	-I$(top_srcdir)/common/options \
-	-I$(top_srcdir)/common/progress
+	-I$(top_srcdir)/common/progress \
+	-DLIBOSINFO_DB_PATH='"$(datadir)/libosinfo/db"'
 libmllib_a_CFLAGS = \
 	$(WARN_CFLAGS) $(WERROR_CFLAGS) \
 	$(LIBVIRT_CFLAGS) $(LIBXML2_CFLAGS) \

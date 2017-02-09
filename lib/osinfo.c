@@ -52,6 +52,45 @@
 
 #include "osinfo.h"
 
+#ifndef GUESTFS_PRIVATE
+#undef perrorf
+static void perrorf(guestfs_h *g, const char *fmt, ...)
+__attribute__((format (printf,2,3)));
+
+static void perrorf(guestfs_h *g, const char *fmt, ...)
+{
+  va_list args;
+  CLEANUP_FREE char *msg = NULL;
+  CLEANUP_FREE char *fs = NULL;
+
+  ignore_value (asprintf (&fs, "%s\n", fmt));
+
+  va_start (args, fmt);
+  /* Ignoring the result is fine since perror
+   * can take NULL input */
+  ignore_value (vasprintf (&msg, fs, args));
+  va_end (args);
+  perror (msg);
+}
+
+#undef debug
+static void debug(guestfs_h *g, const char *fmt, ...)
+__attribute__((format (printf,2,3)));
+
+static void
+debug(guestfs_h *g, const char *fmt, ...)
+{
+  va_list args;
+  CLEANUP_FREE char *fs = NULL;
+
+  ignore_value (asprintf (&fs, "%s\n", fmt));
+
+  va_start (args, fmt);
+  vfprintf (stderr, fs, args);
+  va_end (args);
+}
+#endif /* GUESTFS_PRIVATE */
+
 
 /* Read the libosinfo XML database files.  The lock is held while
  * this is called.
