@@ -52,6 +52,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <errno.h>
 #include <assert.h>
 #include <sys/types.h>
 #include <libintl.h>
@@ -71,10 +72,11 @@ gl_lock_define_initialized (static, osinfo_db_lock);
 static ssize_t osinfo_db_size = 0; /* 0 = unread, -1 = error, >= 1 = #records */
 static struct osinfo *osinfo_db = NULL;
 
-static int read_osinfo_db (guestfs_h *g);
-static void free_osinfo_db_entry (struct osinfo *);
-
 #define XMLSTREQ(a,b) (xmlStrEqual((a),(b)) == 1)
+typedef int (*read_osinfo_db_callback) (guestfs_h *g, const char *path, void *opaque);
+
+static int read_osinfo_db (guestfs_h *g, read_osinfo_db_callback callback, void *opaque);
+static void free_osinfo_db_entry (struct osinfo *);
 
 /* Given one or more fields from the header of a CD/DVD/ISO, look up
  * the media in the libosinfo database and return our best guess for
@@ -87,14 +89,24 @@ static void free_osinfo_db_entry (struct osinfo *);
  */
 int
 guestfs_int_osinfo_map (guestfs_h *g, const struct guestfs_isoinfo *isoinfo,
-			const struct osinfo **osinfo_ret)
+                        const struct osinfo **osinfo_ret)
 {
   size_t i;
 
   /* We only need to lock the database when reading it for the first time. */
   gl_lock_lock (osinfo_db_lock);
   if (osinfo_db_size == 0) {
-    if (read_osinfo_db (g) == -1) {
+    if (read_osinfo_db (g, read_osinfo_db_xml, NULL) == -1) {
+      /* Fatal error: free any database entries which have been read, and
+       * mark the database as having a permanent error.
+       */
+      if (osinfo_db_size > 0) {
+        for (i = 0; i < (size_t) osinfo_db_size; ++i)
+          free_osinfo_db_entry (&osinfo_db[i]);
+      }
+      free (osinfo_db);
+      osinfo_db = NULL;
+      osinfo_db_size = -1;
       gl_lock_unlock (osinfo_db_lock);
       return -1;
     }
@@ -156,19 +168,16 @@ guestfs_int_osinfo_map (guestfs_h *g, const struct guestfs_isoinfo *isoinfo,
  * Try to use the shared osinfo database layout (and location) first:
  * https://gitlab.com/libosinfo/libosinfo/blob/master/docs/database-layout.txt
  */
-static int read_osinfo_db_xml (guestfs_h *g, const char *filename);
-
-static int read_osinfo_db_flat (guestfs_h *g, const char *directory);
-static int read_osinfo_db_three_levels (guestfs_h *g, const char *directory);
-static int read_osinfo_db_directory (guestfs_h *g, const char *directory);
+static int read_osinfo_db_xml (guestfs_h *g, const char *pathname, void *data);
+static int read_osinfo_db_flat (guestfs_h *g, const char *directory, read_osinfo_db_callback callback, void *opaque);
+static int read_osinfo_db_three_levels (guestfs_h *g, const char *directory, read_osinfo_db_callback callback, void *opaque);
+static int read_osinfo_db_directory (guestfs_h *g, const char *directory, read_osinfo_db_callback callback, void *opaque);
 
 static int
-read_osinfo_db (guestfs_h *g)
+read_osinfo_db (guestfs_h *g,
+                read_osinfo_db_callback callback, void *opaque)
 {
   int r;
-  size_t i;
-
-  assert (osinfo_db_size == 0);
 
   /* (1) Try the shared osinfo directory, using either the
    * $OSINFO_SYSTEM_DIR envvar or its default value.
@@ -181,59 +190,47 @@ read_osinfo_db (guestfs_h *g)
     if (path == NULL)
       path = "/usr/share/osinfo";
     os_path = safe_asprintf (g, "%s/os", path);
-    r = read_osinfo_db_three_levels (g, os_path);
+    r = read_osinfo_db_three_levels (g, os_path, callback, opaque);
   }
   if (r == -1)
-    goto error;
+    return -1;
   else if (r == 1)
     return 0;
 
   /* (2) Try the libosinfo directory, using the newer three-directory
    * layout ($LIBOSINFO_DB_PATH / "os" / $group-ID / [file.xml]).
    */
-  r = read_osinfo_db_three_levels (g, LIBOSINFO_DB_PATH "/os");
+  r = read_osinfo_db_three_levels (g, LIBOSINFO_DB_PATH "/os", callback, opaque);
   if (r == -1)
-    goto error;
+    return -1;
   else if (r == 1)
     return 0;
 
   /* (3) Try the libosinfo directory, using the old flat directory
    * layout ($LIBOSINFO_DB_PATH / "oses" / [file.xml]).
    */
-  r = read_osinfo_db_flat (g, LIBOSINFO_DB_PATH "/oses");
+  r = read_osinfo_db_flat (g, LIBOSINFO_DB_PATH "/oses", callback, opaque);
   if (r == -1)
-    goto error;
+    return -1;
   else if (r == 1)
     return 0;
 
   /* Nothing found. */
   return 0;
-
- error:
-  /* Fatal error: free any database entries which have been read, and
-   * mark the database as having a permanent error.
-   */
-  if (osinfo_db_size > 0) {
-    for (i = 0; i < (size_t) osinfo_db_size; ++i)
-      free_osinfo_db_entry (&osinfo_db[i]);
-  }
-  free (osinfo_db);
-  osinfo_db = NULL;
-  osinfo_db_size = -1;
-
-  return -1;
 }
 
 static int
-read_osinfo_db_flat (guestfs_h *g, const char *directory)
+read_osinfo_db_flat (guestfs_h *g, const char *directory,
+                     read_osinfo_db_callback callback, void *opaque)
 {
   debug (g, "osinfo: loading flat database from %s", directory);
 
-  return read_osinfo_db_directory (g, directory);
+  return read_osinfo_db_directory (g, directory, callback, opaque);
 }
 
 static int
-read_osinfo_db_three_levels (guestfs_h *g, const char *directory)
+read_osinfo_db_three_levels (guestfs_h *g, const char *directory,
+                             read_osinfo_db_callback callback, void *opaque)
 {
   DIR *dir;
   int r;
@@ -259,7 +256,7 @@ read_osinfo_db_three_levels (guestfs_h *g, const char *directory)
 
     /* Iterate only on directories. */
     if (stat (pathname, &sb) == 0 && S_ISDIR (sb.st_mode)) {
-      r = read_osinfo_db_directory (g, pathname);
+      r = read_osinfo_db_directory (g, pathname, callback, opaque);
       if (r == -1)
         goto error;
     }
@@ -289,7 +286,8 @@ read_osinfo_db_three_levels (guestfs_h *g, const char *directory)
 }
 
 static int
-read_osinfo_db_directory (guestfs_h *g, const char *directory)
+read_osinfo_db_directory (guestfs_h *g, const char *directory,
+                          read_osinfo_db_callback callback, void *opaque)
 {
   DIR *dir;
   int r;
@@ -311,7 +309,7 @@ read_osinfo_db_directory (guestfs_h *g, const char *directory)
       CLEANUP_FREE char *pathname = NULL;
 
       pathname = safe_asprintf (g, "%s/%s", directory, d->d_name);
-      r = read_osinfo_db_xml (g, pathname);
+      r = callback (g, pathname, opaque);
       if (r == -1)
         goto error;
     }
@@ -348,7 +346,7 @@ static int read_os_node (guestfs_h *g, xmlXPathContextPtr xpathCtx, xmlNodePtr o
  * Only memory allocation failures are fatal errors here.
  */
 static int
-read_osinfo_db_xml (guestfs_h *g, const char *pathname)
+read_osinfo_db_xml (guestfs_h *g, const char *pathname, void *opaque)
 {
   CLEANUP_XMLFREEDOC xmlDocPtr doc = NULL;
   CLEANUP_XMLXPATHFREECONTEXT xmlXPathContextPtr xpathCtx = NULL;
