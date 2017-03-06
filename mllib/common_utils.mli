@@ -492,3 +492,6 @@ val inspect_decrypt : Guestfs.guestfs -> unit
 (** Simple implementation of decryption: look for any [crypto_LUKS]
     partitions and decrypt them, then rescan for VGs.  This only works
     for Fedora whole-disk encryption. *)
+
+val do_cp : string -> string -> unit
+(** Run the cp command, and exit with an error if it failed *)

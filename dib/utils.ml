@@ -98,10 +98,6 @@ let get_required_tool tool =
 let require_tool tool =
   ignore (get_required_tool tool)
 
-let do_cp src destdir =
-  let cmd = [ "cp"; "-t"; destdir; "-a"; src ] in
-  if run_command cmd <> 0 then exit 1
-
 let ensure_trailing_newline str =
   if String.length str > 0 && str.[String.length str - 1] <> '\n' then str ^ "\n"
   else str

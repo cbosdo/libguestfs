@@ -1167,3 +1167,8 @@ let inspect_decrypt g =
    * function.
    *)
   c_inspect_decrypt g#ocaml_handle (Guestfs.c_pointer g#ocaml_handle)
+
+let do_cp src destdir =
+  let cmd = [ "cp"; "-t"; destdir; "-a"; src ] in
+  if run_command cmd <> 0 then
+    error (f_"copy of %s to %s failed") src destdir
