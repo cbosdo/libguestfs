@@ -495,3 +495,6 @@ val inspect_decrypt : Guestfs.guestfs -> unit
 
 val do_cp : string -> string -> unit
 (** Run the cp command, and exit with an error if it failed *)
+
+val do_mv : string -> string -> unit
+(** Run the mv command, and exit with an error if it failed *)

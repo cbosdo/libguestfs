@@ -1172,3 +1172,9 @@ let do_cp src destdir =
   let cmd = [ "cp"; "-t"; destdir; "-a"; src ] in
   if run_command cmd <> 0 then
     error (f_"copy of %s to %s failed") src destdir
+
+let do_mv src dest =
+  let cmd = [ "mv"; src; dest ] in
+  let r = run_command cmd in
+  if r <> 0 then
+    error (f_"moving file '%s' to '%s' failed") src dest
