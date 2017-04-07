@@ -47,6 +47,7 @@ let parse_cmdline () =
   let interactive = ref false in
   let keep_unsigned = ref false in
 
+  (* Add a --machine-readable parameter *)
   let argspec = [
     [ L"gpg" ], Getopt.Set_string ("gpg", gpg), s_"Set GPG binary/command";
     [ S 'K'; L"gpg-key" ], Getopt.Set_string ("gpgkey", gpgkey),
@@ -150,7 +151,7 @@ let get_disk_image_info filepath =
     size = object_get_number "virtual-size" infos
   }
 
-let process_image filename repo tmprepo index interactive sigchecker =
+let process_image acc_entries filename repo tmprepo index interactive sigchecker =
   message (f_"Preparing %s") filename;
 
   let filepath = repo // filename in
@@ -159,11 +160,22 @@ let process_image filename repo tmprepo index interactive sigchecker =
   let checksum = Checksums.compute_checksum "sha512" xz_path in
   let compressed_size = (Unix.LargeFile.stat xz_path).Unix.LargeFile.st_size in
 
-  let ask message =
-    printf message;
+  let ask ?default ?values message =
+    let default_str = match default with
+    | None -> ""
+    | Some x -> sprintf " [%s] " x in
+
+    let list_str = match values with
+    | None -> ""
+    | Some x ->
+      sprintf (f_"Choose one from the list below:\n %s\n")
+              (String.concat "\n " x) in
+
+    printf "%s%s" message default_str;
+
     let value = read_line () in
     match value with
-    | "" -> None
+    | "" -> default
     | s -> Some s
   in
 
@@ -177,7 +189,7 @@ let process_image filename repo tmprepo index interactive sigchecker =
       id;
   in
 
-  let ask_arch () =
+  let ask_arch guess =
     printf (f_"Architecture. Choose one from the list below:\n");
     let arches = ["x86_64"; "aarch64"; "armv7l"; "i686"; "ppc64"; "ppc64le"; "s390x" ] in
     iteri (
@@ -262,23 +274,43 @@ let process_image filename repo tmprepo index interactive sigchecker =
         )
       | None -> Checksums.SHA512 "" in
 
+    message (f_"Extracting data from the image...");
+    let g = new Guestfs.guestfs () in
+    g#add_drive_ro filepath;
+
+    let roots = g#inspect_os () in
+    if Array.length roots = 1 then
+      error (f_"virt-builder template images must have one and only one root file system");
+
+    let root = Array.get roots 0 in
+    let product = g#inspect_get_product_name root in
+    let inspected_arch = g#inspect_get_arch root in
+    let distro = g#inspect_get_distro root in
+    let version_major = g#inspect_get_major_version root in
+    let version_minor = g#inspect_get_minor_version root in
+    let lvs = g#lvs () in
+
+    g#remove_drive filepath;
+
     let id =
       if id = "" then (
         if interactive then ask_id ()
         else error (f_"missing image identifier");
       ) else id in
 
+    let arch =
+      if arch = "" then (
+        if interactive then ask_arch inspected_arch
+        else error (f_"missing architecture for %s") id;
+      ) else arch in
+
+    (* TODO error out if we have a duplicate id,arch entry in acc_entries *)
+
     let printable_name =
       if printable_name = None && interactive then
         ask (f_"Display name: ")
       else
         printable_name in
-
-    let arch =
-      if arch = "" then (
-        if interactive then ask_arch ()
-        else error (f_"missing architecture for %s") id;
-      ) else arch in
 
     let osinfo =
       if osinfo = None && interactive then
@@ -293,7 +325,7 @@ let process_image filename repo tmprepo index interactive sigchecker =
         expand in
 
     let lvexpand =
-      if lvexpand = None && interactive then
+      if lvexpand = None && interactive && lvs <> [||] then
         ask (f_"Expandable volume: ")
       else
         lvexpand in
@@ -397,11 +429,12 @@ let main () =
   let index_channel = open_out outindex_path in
 
   (* Generate entries for uncompressed images *)
-  let images_entries = List.map (
-    fun filename ->
-      process_image filename cmdline.repo tmprepo
-                    index cmdline.interactive sigchecker
-  ) images in
+  let images_entries = List.fold_right (
+    fun filename acc ->
+      let image_entry = process_image acc filename cmdline.repo tmprepo
+                                      index cmdline.interactive sigchecker in
+      image_entry :: acc
+  ) images [] in
 
   (* Filter out entries for newly found images and entries
      without a corresponding image file *)
